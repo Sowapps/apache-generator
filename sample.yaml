@@ -1,0 +1,55 @@
+
+name: "Sample Customer"
+# Smart defaults, ssl_config is assigned only if required, like auth
+default_host:
+    admin_email: "contact@sowapps.com"
+    port: 81
+    ssl_config: "/home/sample/cert/apache2-ssl.conf"
+    auth:
+        user_file: "/optional/path/to/user/file"
+        group_file: "/optional/path/to/group/file"
+
+website_hosts:
+    sample_main:
+        host: "sample.com"
+        aliases: ["*sample.com", "www.sample.com", "*sample.fr"]
+        path: "/home/sample/www/"
+        require:
+            type: "group"
+            subject: "sowapps"
+        redirect:
+            host: "www.sample.fr"
+            port: 80
+
+redirections:
+    sample_ssl:
+        admin_email: "sample@sowapps.com"
+        host: "www.sample.com"
+        aliases: ["*sample.com", "www.sample.com", "*sample.fr"]
+        port: 443
+        target: "#sample_main"
+        auth:
+            name: "Optional name"
+            type: "Optional type"
+            user_file: "/optional/path/to/user/file"
+            group_file: "/optional/path/to/group/file"
+            require:
+                - type: "group"
+                  subject: "sowapps"
+                  reject: true
+    sample_google:
+        host: "google.sample.com"
+        port: 80
+        target: "http://google.com/"
+
+proxies:
+    drive:
+        admin_email: "drive@sowapps.com"
+        host: "drive.sample.com"
+        aliases: ["drive.sample.fr"]
+        port: 443
+        target: "http://10.0.1.100/"
+
+
+
+
