@@ -20,3 +20,8 @@ You must run this command as root.
 -h, --help
 	Show help
 
+## Configuration
+
+To use this command, you should declare at least one YAML configuration file into to your input folder.
+
+See [Sample YAML file](sample.yaml)
