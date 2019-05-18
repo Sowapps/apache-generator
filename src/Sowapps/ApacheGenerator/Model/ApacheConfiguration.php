@@ -87,6 +87,10 @@ class ApacheConfiguration implements Renderable {
 								$redirectHost->host = 'www.' . $hostConfig->host;
 								$redirectHost->aliases = array('*' . $hostConfig->host);
 								break;
+							case 'parent+subdomains':
+								list(, $redirectHost->host) = explode('.', $hostConfig->host, 2);
+								$redirectHost->aliases = array('*' . $hostConfig->host);
+								break;
 							default:
 								throw new ApacheConfigurationException(sprintf('Invalid implicit redirect value "%s" in website host configuration', $hostConfig->implicit_redirect));
 						}

@@ -10,9 +10,10 @@ default_host:
         user_file: "/optional/path/to/user/file"
         group_file: "/optional/path/to/group/file"
     implicit_redirect: "parent"
-    # "parent" redirects to domain parent
+    # "parent" redirects domain's parent
     # "www" redirects www subdomain
-    # "subdomains" redirects to all subdomain
+    # "subdomains" redirects all subdomains
+    # "parent+subdomains" redirects domain's parent & all subdomains
 
 website_hosts:
     sample_main:
