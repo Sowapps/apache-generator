@@ -5,6 +5,7 @@
 
 namespace Sowapps\ApacheGenerator;
 
+use Sowapps\ApacheGenerator\Exception\ApacheConfigurationException;
 use Sowapps\ApacheGenerator\Exception\ApacheGeneratorException;
 use Sowapps\ApacheGenerator\Model\ApacheConfiguration;
 
@@ -44,6 +45,12 @@ class ApacheGeneratorApplication {
 		}
 	}
 	
+	/**
+	 * Run application
+	 *
+	 * @throws ApacheGeneratorException
+	 * @throws ApacheConfigurationException
+	 */
 	public function run() {
 		$this->preRun();
 		$position = 0;
@@ -60,20 +67,20 @@ class ApacheGeneratorApplication {
 		$this->write('Finished to generate all configurations.');
 	}
 	
+	/**
+	 * @param $filePath
+	 * @param int $position
+	 * @throws ApacheConfigurationException
+	 */
 	public function generate($filePath, $position = 0) {
 		echo "Generate configuration for path {$filePath}\n";
 		$configuration = new ApacheConfiguration(pathinfo($filePath, PATHINFO_FILENAME), static::parseConfigurationFile($filePath));
-//		if(!$configuration->name) {
-//			throw new ApacheGeneratorException(sprintf('No name in source configuration %s', $filePath));
-//		}
-//		$configurationSlug = pathinfo($filePath, PATHINFO_FILENAME);
+		
 		$this->write(sprintf("Generate apache configuration for %s (%s) #%d from source file\n%s", $configuration->getName(), $configuration->getSlug(), $position, $filePath));
 		
 		$content = $configuration->generate();
 		
 		$outputPath = sprintf('%s/%s.conf', $this->apacheConfPath, $configuration->getSlug());
-//		echo $content."\n";
-//		echo $outputPath."\n";
 		file_put_contents($outputPath, $content);
 		$this->write(sprintf("Generated into %s\n", $outputPath));
 	}

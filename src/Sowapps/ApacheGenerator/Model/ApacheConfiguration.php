@@ -10,6 +10,8 @@ use stdClass;
 
 class ApacheConfiguration implements Renderable {
 	
+	const DEFAULT_PORT = 80;
+	
 	/**
 	 * @var string
 	 */
@@ -43,8 +45,6 @@ class ApacheConfiguration implements Renderable {
 	 * @throws ApacheConfigurationException
 	 */
 	public function __construct($slug, $configuration) {
-//		var_dump($slug);
-//		var_dump($configuration);
 		if( empty($slug) ) {
 			throw new ApacheConfigurationException('Missing slug');
 		}
@@ -54,12 +54,15 @@ class ApacheConfiguration implements Renderable {
 		$this->slug = $slug;
 		$this->name = $configuration->name;
 		$hostDefault = !empty($configuration->default_host) ? $configuration->default_host : new stdClass();
+		if( !isset($hostDefault->port) ) {
+			$hostDefault->port = self::DEFAULT_PORT;
+		}
 		$this->websiteHosts = array();
 		$this->redirections = array();
 		$this->proxies = array();
 		$self = $this;
 		// Add website hosts from website_hosts configuration
-		if(!empty($configuration->website_hosts)) {
+		if( !empty($configuration->website_hosts) ) {
 			$this->addHostsTo(
 				$this->websiteHosts,
 				(array) $configuration->website_hosts,
@@ -68,6 +71,29 @@ class ApacheConfiguration implements Renderable {
 					ApacheWebsiteHost::normalize($hostConfig);
 					$self->applyDefaults($hostConfig, $hostDefault);
 					$host = new ApacheWebsiteHost($key, $hostConfig);
+					// Add implicit website host's redirections
+					if( isset($hostConfig->implicit_redirect) ) {
+						$redirectHost = (object) array(
+							'target' => $host->getMainUrl(),
+						);
+						switch( $hostConfig->implicit_redirect ) {
+							case 'parent':
+								list(, $redirectHost->host) = explode('.', $hostConfig->host, 2);
+								break;
+							case 'www':
+								$redirectHost->host = 'www.' . $hostConfig->host;
+								break;
+							case 'subdomains':
+								$redirectHost->host = 'www.' . $hostConfig->host;
+								$redirectHost->aliases = array('*' . $hostConfig->host);
+								break;
+							default:
+								throw new ApacheConfigurationException(sprintf('Invalid implicit redirect value "%s" in website host configuration', $hostConfig->implicit_redirect));
+						}
+						ApacheRedirection::normalize($redirectHost);
+						$self->applyDefaults($redirectHost, $hostDefault);
+						$self->redirections[] = new ApacheRedirection($key . '_impredir', $redirectHost);
+					}
 					// Add website host's redirect to redirections
 					if( isset($hostConfig->redirect) ) {
 						$redirectHost = clone $hostConfig->redirect;
@@ -79,7 +105,7 @@ class ApacheConfiguration implements Renderable {
 				});
 		}
 		// Add redirections from redirections configuration
-		if(!empty($configuration->redirections)) {
+		if( !empty($configuration->redirections) ) {
 			$this->addHostsTo(
 				$this->redirections,
 				(array) $configuration->redirections,
@@ -91,7 +117,7 @@ class ApacheConfiguration implements Renderable {
 				});
 		}
 		// Add proxies from proxies configuration
-		if(!empty($configuration->proxies)) {
+		if( !empty($configuration->proxies) ) {
 			$this->addHostsTo($this->proxies,
 				(array) $configuration->proxies,
 				function (&$host, $key) use ($self, $hostDefault) {
@@ -116,30 +142,33 @@ class ApacheConfiguration implements Renderable {
 	 */
 	protected function applyDefaults(&$host, $default) {
 		// Apply defaults to virtual host configuration
-		if(!empty($default->admin_email) && empty($host->admin_email)) {
+		if( !empty($default->admin_email) && empty($host->admin_email) ) {
 			$host->admin_email = $default->admin_email;
 		}
-		if(!empty($default->port) && empty($host->port)) {
+		if( !empty($default->port) && empty($host->port) ) {
 			$host->port = $default->port;
 		}
+		if( !empty($default->implicit_redirect) && !isset($host->implicit_redirect) ) {
+			$host->implicit_redirect = $default->implicit_redirect;
+		}
 		// Apply smart defaults to virtual host configuration
-		if(!empty($default->ssl_config) && $host->port === AbstractApacheVirtualHost::PORT_HTTPS && empty($host->ssl_config)) {
+		if( !empty($default->ssl_config) && $host->port === AbstractApacheVirtualHost::PORT_HTTPS && empty($host->ssl_config) ) {
 			$host->ssl_config = $default->ssl_config;
 		}
 		// Apply smart defaults to authentication configuration
-		if(!empty($default->auth) && !empty($host->auth) && !empty($default->auth->type) && empty($host->auth->type)) {
+		if( !empty($default->auth) && !empty($host->auth) && !empty($default->auth->type) && empty($host->auth->type) ) {
 			$host->auth->type = $default->auth->type;
 		}
-		if(!empty($default->auth) && !empty($host->auth) && !empty($default->auth->name) && empty($host->auth->name)) {
+		if( !empty($default->auth) && !empty($host->auth) && !empty($default->auth->name) && empty($host->auth->name) ) {
 			$host->auth->name = $default->auth->name;
 		}
-		if(!empty($default->auth) && !empty($host->auth) && !empty($default->auth->user_file) && empty($host->auth->user_file)) {
+		if( !empty($default->auth) && !empty($host->auth) && !empty($default->auth->user_file) && empty($host->auth->user_file) ) {
 			$host->auth->user_file = $default->auth->user_file;
 		}
-		if(!empty($default->auth) && !empty($host->auth) && !empty($default->auth->group_file) && empty($host->auth->group_file)) {
+		if( !empty($default->auth) && !empty($host->auth) && !empty($default->auth->group_file) && empty($host->auth->group_file) ) {
 			$host->auth->group_file = $default->auth->group_file;
 		}
-		if(!empty($default->auth) && !empty($host->auth) && !empty($default->auth->require) && empty($host->auth->require)) {
+		if( !empty($default->auth) && !empty($host->auth) && !empty($default->auth->require) && empty($host->auth->require) ) {
 			$host->auth->require = $default->auth->require;
 		}
 	}
@@ -165,18 +194,18 @@ class ApacheConfiguration implements Renderable {
 		return $content;
 	}
 	
+	public function checkGenerate() {
+		//		foreach( $this->getAllVirtualHosts() as $virtualHost ) {
+		//			// Check SSL configuration of hosts, try to provide if missing or throw error
+		//			if( $virtualHost->isSecureConnection() && !$virtualHost->getSslConfigurationPath() ) {
+		//			}
+		//		}
+	}
+	
 	public function render() {
 		foreach( $this->getAllVirtualHosts() as $virtualHost ) {
 			$virtualHost->render();
 		}
-	}
-	
-	public function checkGenerate() {
-//		foreach( $this->getAllVirtualHosts() as $virtualHost ) {
-//			// Check SSL configuration of hosts, try to provide if missing or throw error
-//			if( $virtualHost->isSecureConnection() && !$virtualHost->getSslConfigurationPath() ) {
-//			}
-//		}
 	}
 	
 	/**
