@@ -41,3 +41,13 @@ spl_autoload_register(function ($class) {
 		require $file;
 	}
 });
+
+function writeError($text, $exitCode = -1, $showUsage = false) {
+	if($showUsage) {
+		showUsage();
+	}
+	fwrite(STDERR, $text . PHP_EOL);
+	if( $exitCode > -1 ) {
+		exit($exitCode);
+	}
+}

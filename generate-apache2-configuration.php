@@ -3,12 +3,17 @@
  * @author Florent HAZARD <f.hazard@sowapps.com>
  */
 
-require 'loader.php';
-
 use Sowapps\ApacheGenerator\ApacheGeneratorApplication;
 
-//$generator = new ApacheGeneratorApplication('/etc/sowapps/apache2', '/etc/sowapps/apache2-output');
-$generator = new ApacheGeneratorApplication('/etc/sowapps/apache2', '/etc/apache2/sites-available');
+require 'loader.php';
+require 'check-input.php';
+
+/**
+ * @var string $inputPath Path to yaml folder to parse
+ * @var string $outputPath Path to apache folder to generate
+ */
+
+$generator = new ApacheGeneratorApplication($inputPath, $outputPath);
 
 $generator->run();
 
@@ -19,6 +24,11 @@ $generator->run();
  * To test
  * cp /usr/local/src/sowapps/ApacheGenerator/sample.yaml /etc/sowapps/apache2
  *
+ * To install
+ * ln -s /usr/local/src/sowapps/ApacheGenerator/a2generate.sh /usr/local/bin/a2generate
+ *
  * To run for tests
  * php -f /usr/local/src/sowapps/ApacheGenerator/generate-apache2-configuration.php
+ *
+ * a2generate --parse=/etc/sowapps/apache2 --to=/etc/apache2/sites-available
  */
