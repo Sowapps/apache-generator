@@ -3,11 +3,16 @@ name: "Sample Customer"
 # Smart defaults, ssl_config is assigned only if required, like auth
 default_host:
     admin_email: "contact@sowapps.com"
-    port: 81
+    port: 81 # Default port is 80
+    # To use ssl, we think you should write your own configuration and include it
     ssl_config: "/home/sample/cert/apache2-ssl.conf"
     auth:
         user_file: "/optional/path/to/user/file"
         group_file: "/optional/path/to/group/file"
+    implicit_redirect: "parent"
+    # "parent" redirects to domain parent
+    # "www" redirects www subdomain
+    # "subdomains" redirects to all subdomain
 
 website_hosts:
     sample_main:
