@@ -28,11 +28,13 @@ You must run this command as root.
 -iPATH, --parse=PATH
 	The folder path to find the YAML configuration files to parse
 	If missing, application will ask for it
+
 -oPATH, --to=PATH
 	The folder path to write the Apache2 configuration files
 	If missing, application will ask for it
+
 -h
-	Show this help
+	Show help
 
 
 EOF;
