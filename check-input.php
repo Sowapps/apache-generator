@@ -40,12 +40,24 @@ You must run this command as root.
 EOF;
 }
 
+define('AG_USERSAVE_VERSION', '1.0');
+
+// Check user is root
 if( posix_getpwuid(posix_geteuid())['name'] !== 'root' ) {
 	showUsage();
 	writeError('You must run this command as root.', 1);
 }
 
+$userSavePath = getenv('HOME') ? getenv('HOME') . '/.a2generator.yaml' : null;
+
+// Get options from command
 $options = getopt('i::o::h', array('parse::', 'to::', 'help'));
+
+// No argument, load from user save
+if(empty($options) && is_file($userSavePath) && is_readable($userSavePath)) {
+	$userConfig = (object) yaml_parse_file($userSavePath);
+	return;
+}
 
 mergeOption($options, 'h', 'help');
 mergeOption($options, 'i', 'parse');
@@ -58,36 +70,40 @@ if( !empty($options['help']) ) {
 	exit;
 }
 
+// Get new configuration
+$userConfig = new stdClass();
+$userConfig->version = AG_USERSAVE_VERSION;
+$userConfig->inputPath = null;
+$userConfig->outputPath = null;
+
 // Check input parse folder path
-$inputPath = null;
 // Try to get input from option
 if( !empty($options['parse']) ) {
 	if(count($options['parse']) > 1) {
 		writeError('You must provide only one input folder path to continue.', 1, true);
 	}
-	$inputPath = $options['parse'][0];
+	$userConfig->inputPath = $options['parse'][0];
 } else {
-	// Request new to user
-	for( $i = 0; !$inputPath && $i < 3; $i++ ) {
-		$inputPath = readline('YAML folder path ? ');
+	// Request input from user
+	for( $i = 0; !$userConfig->inputPath && $i < 3; $i++ ) {
+		$userConfig->inputPath = readline('YAML folder path ? ');
 	}
-	if( !$inputPath ) {
+	if( !$userConfig->inputPath ) {
 		writeError('You must provide a valid YAML folder path to continue.', 1);
 	}
 }
 // Check input path is valid
-if( !is_dir($inputPath) || !is_readable($inputPath) ) {
+if( !is_dir($userConfig->inputPath) || !is_readable($userConfig->inputPath) ) {
 	writeError('You must provide a valid YAML folder path to continue.', 1, true);
 }
 
 // Check output folder path
-$outputPath = null;
 // Try to get output from option
 if( !empty($options['to']) ) {
 	if(count($options['to']) > 1) {
 		writeError('You must provide only one output folder path to continue.', 1, true);
 	}
-	$outputPath = $options['to'][0];
+	$userConfig->outputPath = $options['to'][0];
 } else {
 	// Calculate output path default
 	$outputPathDefault = null;
@@ -98,17 +114,28 @@ if( !empty($options['to']) ) {
 			break;
 		}
 	}
-	// Request new to user
-	$outputPath = readline('Output folder path ? ' . ($outputPathDefault ? "[{$outputPathDefault}]" : ''));
-	if( !$outputPath ) {
+	// Request output from user
+	$userConfig->outputPath = readline('Output folder path ? ' . ($outputPathDefault ? "[{$outputPathDefault}]" : ''));
+	if( !$userConfig->outputPath ) {
 		if( $outputPathDefault ) {
-			$outputPath = $outputPathDefault;
+			$userConfig->outputPath = $outputPathDefault;
 		} else {
 			writeError('You must provide a valid output folder path to continue, no default were found.', 1);
 		}
 	}
 }
 // Check input path is valid
-if( !is_dir($outputPath) || !is_writable($outputPath) ) {
+if( !is_dir($userConfig->outputPath) || !is_writable($userConfig->outputPath) ) {
 	writeError('You must provide a valid output folder path to continue.', 1, true);
+}
+
+// Save user configuration
+if( !$userSavePath ) {
+	writeError('Unable to save configuration, no home detected.');
+} else
+if( (is_file($userSavePath) && is_writable($userSavePath)) || (!is_file($userSavePath) && is_writable(dirname($userSavePath))) ) {
+	yaml_emit_file($userSavePath, (array) $userConfig);
+	echo sprintf("Saved configuration into %s\n", $userSavePath);
+} else {
+	writeError(sprintf('Unable to save configuration, save file %s is not writable.', $userSavePath));
 }

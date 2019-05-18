@@ -9,11 +9,12 @@ require 'loader.php';
 require 'check-input.php';
 
 /**
- * @var string $inputPath Path to yaml folder to parse
- * @var string $outputPath Path to apache folder to generate
+ * @var object $userConfig
+ *	inputPath Path to yaml folder to parse
+ * 	outputPath Path to apache folder to generate
  */
 
-$generator = new ApacheGeneratorApplication($inputPath, $outputPath);
+$generator = new ApacheGeneratorApplication($userConfig->inputPath, $userConfig->outputPath);
 
 $generator->run();
 
