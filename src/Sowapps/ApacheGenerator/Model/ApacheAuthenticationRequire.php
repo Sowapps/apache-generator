@@ -35,9 +35,6 @@ class ApacheAuthenticationRequire implements Renderable {
 		if(empty($authentication->type)) {
 			throw new ApacheConfigurationException('Missing type in authentication require configuration');
 		}
-//		if(empty($authentication->subject)) {
-//			throw new ApacheConfigurationException('Missing subject in authentication require configuration');
-//		}
 		$this->type = $authentication->type;
 		$this->subject = !empty($authentication->subject) ? $authentication->subject : null;
 		$this->reject = !empty($authentication->reject);

@@ -89,7 +89,7 @@ class ApacheConfiguration implements Renderable {
 								break;
 							case 'parent+subdomains':
 								list(, $redirectHost->host) = explode('.', $hostConfig->host, 2);
-								$redirectHost->aliases = array('*' . $hostConfig->host);
+								$redirectHost->aliases = array('*' . $redirectHost->host);
 								break;
 							default:
 								throw new ApacheConfigurationException(sprintf('Invalid implicit redirect value "%s" in website host configuration', $hostConfig->implicit_redirect));

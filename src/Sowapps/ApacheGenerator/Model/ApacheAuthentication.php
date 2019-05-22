@@ -56,7 +56,10 @@ class ApacheAuthentication implements Renderable {
 		$this->name = !empty($authentication->name) ? $authentication->name : self::DEFAULT_NAME;
 		$this->userFilePath = !empty($authentication->user_file) ? $authentication->user_file : null;
 		$this->groupFilePath = !empty($authentication->group_file) ? $authentication->group_file : null;
-		$this->requires = $authentication->require;
+		$this->requires = array();
+		foreach($authentication->require as $require) {
+			$this->requires[] = new ApacheAuthenticationRequire($require);
+		}
 		if($this->userFilePath && (!is_readable($this->userFilePath) || !is_file($this->userFilePath))) {
 			throw new ApacheConfigurationException('Invalid user file path in authentication configuration');
 		}
@@ -67,6 +70,7 @@ class ApacheAuthentication implements Renderable {
 	
 	public function render() {
 		echo "
+		
 		AuthType {$this->getType()}
 		AuthName \"{$this->getName()}\"";
 		if($this->userFilePath) {
