@@ -53,27 +53,35 @@ class ApacheConfiguration implements Renderable {
 		}
 		$this->slug = $slug;
 		$this->name = $configuration->name;
-		$hostDefault = !empty($configuration->default_host) ? $configuration->default_host : new stdClass();
-		if( !isset($hostDefault->port) ) {
-			$hostDefault->port = self::DEFAULT_PORT;
-		}
 		$this->websiteHosts = array();
 		$this->redirections = array();
 		$this->proxies = array();
 		$self = $this;
+		// Host default
+		$hostDefault = !empty($configuration->default_host) ? $configuration->default_host : new stdClass();
+		if( !isset($hostDefault->port) ) {
+			$hostDefault->port = self::DEFAULT_PORT;
+		}
+		ApacheWebsiteHost::normalize($hostDefault);
+		// Templates
+		$templates = !empty($configuration->templates) ? (array) $configuration->templates : array();
+		foreach($templates as &$template) {
+			ApacheRedirection::normalize($template);
+		}
 		// Add website hosts from website_hosts configuration
 		if( !empty($configuration->website_hosts) ) {
 			$this->addHostsTo(
 				$this->websiteHosts,
 				(array) $configuration->website_hosts,
-				function (&$host, $key) use ($self, $hostDefault) {
+				function (&$host, $key) use ($self, $hostDefault, $templates) {
 					$hostConfig = clone $host;
-					ApacheWebsiteHost::normalize($hostConfig);
-					$self->applyDefaults($hostConfig, $hostDefault);
-					$host = new ApacheWebsiteHost($key, $hostConfig);
+					$hostConfig->slug = $key;
+					$self->applyDefaults($hostConfig, $hostDefault, $templates);
+					$host = new ApacheWebsiteHost($hostConfig);
 					// Add implicit website host's redirections
 					if( isset($hostConfig->implicit_redirect) ) {
 						$redirectHost = (object) array(
+							'slug' => $key . '_impredir',
 							'target' => $host->getMainUrl(),
 						);
 						switch( $hostConfig->implicit_redirect ) {
@@ -94,17 +102,16 @@ class ApacheConfiguration implements Renderable {
 							default:
 								throw new ApacheConfigurationException(sprintf('Invalid implicit redirect value "%s" in website host configuration', $hostConfig->implicit_redirect));
 						}
-						ApacheRedirection::normalize($redirectHost);
-						$self->applyDefaults($redirectHost, $hostDefault);
-						$self->redirections[] = new ApacheRedirection($key . '_impredir', $redirectHost);
+						$self->applyDefaults($redirectHost, $hostDefault, $templates);
+						$self->redirections[] = new ApacheRedirection($redirectHost);
 					}
 					// Add website host's redirect to redirections
 					if( isset($hostConfig->redirect) ) {
 						$redirectHost = clone $hostConfig->redirect;
+						$redirectHost->slug = $key . '_redirect';
 						$redirectHost->target = $host->getMainUrl();
-						ApacheRedirection::normalize($redirectHost);
-						$self->applyDefaults($redirectHost, $hostDefault);
-						$self->redirections[] = new ApacheRedirection($key . '_redirect', $redirectHost);
+						$self->applyDefaults($redirectHost, $hostDefault, $templates);
+						$self->redirections[] = new ApacheRedirection($redirectHost);
 					}
 				});
 		}
@@ -113,26 +120,33 @@ class ApacheConfiguration implements Renderable {
 			$this->addHostsTo(
 				$this->redirections,
 				(array) $configuration->redirections,
-				function (&$host, $key) use ($self, $hostDefault) {
+				function (&$host, $key) use ($self, $hostDefault, $templates) {
 					$hostConfig = clone $host;
-					ApacheRedirection::normalize($hostConfig);
-					$self->applyDefaults($hostConfig, $hostDefault);
-					$host = new ApacheRedirection($key, $hostConfig);
+					$hostConfig->slug = $key;
+					$self->applyDefaults($hostConfig, $hostDefault, $templates);
+					$host = new ApacheRedirection($hostConfig);
 				});
 		}
 		// Add proxies from proxies configuration
 		if( !empty($configuration->proxies) ) {
 			$this->addHostsTo($this->proxies,
 				(array) $configuration->proxies,
-				function (&$host, $key) use ($self, $hostDefault) {
+				function (&$host, $key) use ($self, $hostDefault, $templates) {
 					$hostConfig = clone $host;
-					ApacheProxy::normalize($hostConfig);
-					$self->applyDefaults($hostConfig, $hostDefault);
-					$host = new ApacheProxy($key, $hostConfig);
+					$hostConfig->slug = $key;
+					$self->applyDefaults($hostConfig, $hostDefault, $templates);
+					$host = new ApacheProxy($hostConfig);
 				});
 		}
 	}
 	
+	/**
+	 * Apply callback and merge host lists
+	 *
+	 * @param $list
+	 * @param $addList
+	 * @param $callback
+	 */
 	protected function addHostsTo(&$list, $addList, $callback) {
 		array_walk($addList, $callback);
 		$list = array_merge($list, $addList);
@@ -143,8 +157,29 @@ class ApacheConfiguration implements Renderable {
 	 *
 	 * @param $host
 	 * @param $default
+	 * @throws ApacheConfigurationException
 	 */
-	protected function applyDefaults(&$host, $default) {
+	protected function applyDefaults(&$host, $default, $templates) {
+		$host->templates = !empty($host->templates) ? encapsulate($host->templates) : array();
+		ApacheRedirection::normalize($host);
+		foreach($host->templates as $templateKey) {
+			if(!isset($templates[$templateKey])) {
+				throw new ApacheConfigurationException(sprintf('Unknown template %s in host %s', $templateKey, $host->slug));
+			}
+			$this->applyHost($host, $templates[$templateKey], true);
+		}
+		$this->applyHost($host, $default);
+		ApacheRedirection::normalize($host);
+	}
+	
+	/**
+	 * Apply default to host configuration
+	 *
+	 * @param object $host The host to update
+	 * @param object $default The default to apply
+	 * @param bool $force Force to use default, disable smart usage
+	 */
+	protected function applyHost(&$host, $default, $force = false) {
 		// Apply defaults to virtual host configuration
 		if( !empty($default->admin_email) && empty($host->admin_email) ) {
 			$host->admin_email = $default->admin_email;
@@ -159,53 +194,53 @@ class ApacheConfiguration implements Renderable {
 		if( !empty($default->ssl_config) && $host->port === AbstractApacheVirtualHost::PORT_HTTPS && empty($host->ssl_config) ) {
 			$host->ssl_config = $default->ssl_config;
 		}
-		// Apply smart defaults to authentication configuration
-		if( !empty($default->auth) && !empty($host->auth) && !empty($default->auth->type) && empty($host->auth->type) ) {
-			$host->auth->type = $default->auth->type;
-		}
-		if( !empty($default->auth) && !empty($host->auth) && !empty($default->auth->name) && empty($host->auth->name) ) {
-			$host->auth->name = $default->auth->name;
-		}
-		if( !empty($default->auth) && !empty($host->auth) && !empty($default->auth->user_file) && empty($host->auth->user_file) ) {
-			$host->auth->user_file = $default->auth->user_file;
-		}
-		if( !empty($default->auth) && !empty($host->auth) && !empty($default->auth->group_file) && empty($host->auth->group_file) ) {
-			$host->auth->group_file = $default->auth->group_file;
-		}
-		if( !empty($default->auth) && !empty($host->auth) && !empty($default->auth->require) && empty($host->auth->require) ) {
-			$host->auth->require = $default->auth->require;
+		if( $force && !empty($default->auth) && empty($host->auth) ) {
+			// Force auth if unavailable
+			$host->auth = clone $default->auth;
+		} else {
+			// Apply smart defaults to authentication configuration
+			if( !empty($default->auth) && !empty($host->auth) && !empty($default->auth->type) && empty($host->auth->type) ) {
+				$host->auth->type = $default->auth->type;
+			}
+			if( !empty($default->auth) && !empty($host->auth) && !empty($default->auth->name) && empty($host->auth->name) ) {
+				$host->auth->name = $default->auth->name;
+			}
+			if( !empty($default->auth) && !empty($host->auth) && !empty($default->auth->user_file) && empty($host->auth->user_file) ) {
+				$host->auth->user_file = $default->auth->user_file;
+			}
+			if( !empty($default->auth) && !empty($host->auth) && !empty($default->auth->group_file) && empty($host->auth->group_file) ) {
+				$host->auth->group_file = $default->auth->group_file;
+			}
+			if( !empty($default->auth) && !empty($host->auth) && !empty($default->auth->require) && empty($host->auth->require) ) {
+				$host->auth->require = $default->auth->require;
+			}
 		}
 	}
 	
 	/**
+	 * Generate apache2 configuration content for this configuration
+	 *
 	 * @return string
 	 */
 	public function generate() {
-		$this->checkGenerate();
-		
 		// Capture output
 		ob_start();
 		
 		try {
 			$this->render();
 			// End output buffer and return contents
-			$content = ob_get_contents();
+			return ob_get_contents();
 			
 		} finally {
+			// In case of exception or in case of success, we end output buffer
+			// We let all exceptions get out
 			ob_end_clean();
 		}
-		
-		return $content;
 	}
 	
-	public function checkGenerate() {
-		//		foreach( $this->getAllVirtualHosts() as $virtualHost ) {
-		//			// Check SSL configuration of hosts, try to provide if missing or throw error
-		//			if( $virtualHost->isSecureConnection() && !$virtualHost->getSslConfigurationPath() ) {
-		//			}
-		//		}
-	}
-	
+	/**
+	 * Render apache2 configuration for all virtual hosts to output buffer
+	 */
 	public function render() {
 		foreach( $this->getAllVirtualHosts() as $virtualHost ) {
 			$virtualHost->render();
@@ -213,6 +248,8 @@ class ApacheConfiguration implements Renderable {
 	}
 	
 	/**
+	 * Get all the virtual hosts of this configuration
+	 *
 	 * @return AbstractApacheVirtualHost[]
 	 */
 	public function getAllVirtualHosts() {

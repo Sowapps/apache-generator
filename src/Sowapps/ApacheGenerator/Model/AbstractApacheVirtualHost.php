@@ -56,27 +56,32 @@ abstract class AbstractApacheVirtualHost implements Renderable {
 	 * @param stdClass $virtualHost
 	 * @throws ApacheConfigurationException
 	 */
-	public function __construct($slug, $virtualHost) {
-		$this->slug = $slug;
+	public function __construct($virtualHost) {
+		$this->slug = $virtualHost->slug;
 		$this->port = isset($virtualHost->port) ? $virtualHost->port : static::DEFAULT_PORT;
 		if(empty($virtualHost->host)) {
-			throw new ApacheConfigurationException(sprintf('Missing host in virtual host "%s" configuration', $slug));
+			throw new ApacheConfigurationException(sprintf('Missing host in virtual host "%s" configuration', $this->slug));
 		}
 		$this->host = $virtualHost->host;
 		if(isset($virtualHost->aliases) && !is_array($virtualHost->aliases)) {
-			throw new ApacheConfigurationException(sprintf('Invalid aliases in virtual host "%s" configuration', $slug));
+			throw new ApacheConfigurationException(sprintf('Invalid aliases in virtual host "%s" configuration', $this->slug));
 		}
 		$this->aliases = !empty($virtualHost->aliases) ? $virtualHost->aliases : array();
 		$this->adminEmail = !empty($virtualHost->admin_email) ? $virtualHost->admin_email : null;
 		$this->authentication = !empty($virtualHost->auth) ? new ApacheAuthentication($virtualHost->auth) : null;
 		if($this->isSecureConnection()) {
 			if(empty($virtualHost->ssl_config)) {
-				throw new ApacheConfigurationException(sprintf('Missing ssl configuration path in host "%s" configuration', $slug));
+				throw new ApacheConfigurationException(sprintf('Missing ssl configuration path in host "%s" configuration', $this->slug));
 			}
 			$this->sslConfigurationPath = $virtualHost->ssl_config;
 		}
 	}
 	
+	/**
+	 * Render complete Apache2 virtual host to output buffer
+	 *
+	 * @see static::renderContent()
+	 */
 	public function render() {
 		echo '# ' . $this->getTitle();
 		if($this->isSecureConnection()) {
@@ -118,22 +123,50 @@ abstract class AbstractApacheVirtualHost implements Renderable {
 		echo "\n\n";
 	}
 	
+	/**
+	 * Get title of virtual host
+	 *
+	 * @return string
+	 */
 	protected abstract function getTitle();
 	
+	/**
+	 * Render the content of virtual host to output buffer
+	 */
 	public abstract function renderContent();
 	
+	/**
+	 * Get string list of aliases for apache2 configuration purpose
+	 *
+	 * @return string
+	 */
 	public function getAliasList() {
 		return $aliases = implode(' ', $this->aliases);
 	}
 	
+	/**
+	 * Get generated url from virtual host
+	 *
+	 * @return string
+	 */
 	public function getMainUrl() {
 		return $this->getProtocol() . '://' . $this->host . '/';
 	}
 	
+	/**
+	 * Get the host access protocol
+	 *
+	 * @return string
+	 */
 	public function getProtocol() {
 		return $this->isSecureConnection() ? 'https' : 'http';
 	}
 	
+	/**
+	 * Get true if the connection to the host is secured
+	 *
+	 * @return bool
+	 */
 	public function isSecureConnection() {
 		return $this->port === self::PORT_HTTPS;
 	}
@@ -167,7 +200,7 @@ abstract class AbstractApacheVirtualHost implements Renderable {
 	}
 	
 	/**
-	 * @return \string[]
+	 * @return string[]
 	 */
 	public function getAliases() {
 		return $this->aliases;
@@ -194,6 +227,11 @@ abstract class AbstractApacheVirtualHost implements Renderable {
 		return $this->sslConfigurationPath;
 	}
 	
+	/**
+	 * Normalize alias configurations
+	 *
+	 * @param $virtualHost
+	 */
 	public static function normalize(&$virtualHost) {
 		if(empty($virtualHost->auth) && !empty($virtualHost->require)) {
 			$virtualHost->auth = (object) array(

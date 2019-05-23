@@ -8,6 +8,9 @@ namespace Sowapps\ApacheGenerator\Model;
 
 interface Renderable {
 	
+	/**
+	 * Render item
+	 */
 	public function render();
 	
 }

@@ -40,6 +40,9 @@ class ApacheAuthenticationRequire implements Renderable {
 		$this->reject = !empty($authentication->reject);
 	}
 	
+	/**
+	 * Render authentication require of apache2 configuration to output buffer
+	 */
 	public function render() {
 		/**
 		 * Require user cartman
@@ -50,6 +53,11 @@ class ApacheAuthenticationRequire implements Renderable {
 		Require {$this->getRejectString()}{$this->getType()} {$this->getSubject()}";
 	}
 	
+	/**
+	 * Get the reject string for require apache2 configuration
+	 *
+	 * @return string
+	 */
 	public function getRejectString() {
 		return $this->reject ? 'not ' : '';
 	}

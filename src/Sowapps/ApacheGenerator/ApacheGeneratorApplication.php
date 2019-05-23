@@ -25,6 +25,8 @@ class ApacheGeneratorApplication {
 	}
 	
 	/**
+	 * Called before run
+	 *
 	 * @throws ApacheGeneratorException
 	 */
 	protected function preRun() {
@@ -85,12 +87,23 @@ class ApacheGeneratorApplication {
 		$this->write(sprintf("Generated into %s\n", $outputPath));
 	}
 	
+	/**
+	 * Write text to output buffer
+	 *
+	 * @param $text
+	 */
 	public function write($text) {
 		echo $text . "\n";
 	}
 	
+	/**
+	 * Parse YAML configuration file as object
+	 *
+	 * @param $filePath
+	 * @return object
+	 */
 	public static function parseConfigurationFile($filePath) {
-		return json_decode(json_encode(yaml_parse_file($filePath), true));
+		return json_decode(json_encode(yaml_parse_file($filePath)));
 	}
 	
 	/**

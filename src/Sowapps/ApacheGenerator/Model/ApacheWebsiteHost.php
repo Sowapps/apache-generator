@@ -18,19 +18,21 @@ class ApacheWebsiteHost extends AbstractApacheVirtualHost {
 	/**
 	 * AbstractApacheWebsiteHost constructor
 	 *
-	 * @param string $slug
-	 * @param stdClass $redirection
+	 * @param stdClass $websiteHost
 	 * @throws ApacheConfigurationException
 	 */
-	public function __construct($slug, $redirection) {
-		parent::__construct($slug, $redirection);
+	public function __construct($websiteHost) {
+		parent::__construct($websiteHost);
 		
-		if(empty($redirection->path)) {
-			throw new ApacheConfigurationException('Missing path in website host configuration');
+		if(empty($websiteHost->path)) {
+			throw new ApacheConfigurationException(sprintf('Missing path in website host "%s" configuration', $this->slug));
 		}
-		$this->path = $redirection->path;
+		$this->path = $websiteHost->path;
 	}
 	
+	/**
+	 * Render website apache2 configuration to output buffer
+	 */
 	public function renderContent() {
 		echo "
 	DocumentRoot {$this->getPath()}
@@ -51,22 +53,14 @@ class ApacheWebsiteHost extends AbstractApacheVirtualHost {
 			php_value include_path .
 		</IfModule>
 	</Directory>";
-		/*
-		DocumentRoot /home/cartman/www/anek/hosts/dev/sources
-		<Directory /home/cartman/www/anek/hosts/dev/sources/>
-                Options Indexes FollowSymLinks MultiViews
-                AllowOverride All
-                Order allow,deny
-                Allow from all
-                AuthType Basic
-                AuthName Authentification
-                AuthUserFile /home/cartman/.htauth/.htusers
-                AuthGroupFile /home/cartman/.htauth/.htgroups
-                Require user cartman
-		</Directory>
-		*/
 	}
 	
+	
+	/**
+	 * Get title of website host
+	 *
+	 * @return string
+	 */
 	protected function getTitle() {
 		return sprintf('Website Host %s of %s', $this->getSlug(), $this->getHost());
 	}

@@ -3,10 +3,24 @@
  * @author Florent HAZARD <f.hazard@sowapps.com>
  */
 
+/**
+ * Get item or list of item and return list of item
+ *
+ * @param $value
+ * @return array
+ */
 function encapsulate($value) {
 	return is_array($value) ? $value : array($value);
 }
 
+/**
+ * Merge long and short options to make it work together
+ * Ensure all values are arrays
+ *
+ * @param $options
+ * @param $short
+ * @param $long
+ */
 function mergeOption(&$options, $short, $long) {
 	if(isset($options[$long])) {
 		$options[$long] = encapsulate($options[$long]);
@@ -19,6 +33,9 @@ function mergeOption(&$options, $short, $long) {
 	}
 }
 
+/**
+ * Show usage of application to output buffer
+ */
 function showUsage() {
 	echo <<<EOF
 Usage: a2generate.sh [OPTIONS]

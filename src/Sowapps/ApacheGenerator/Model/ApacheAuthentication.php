@@ -68,6 +68,9 @@ class ApacheAuthentication implements Renderable {
 		}
 	}
 	
+	/**
+	 * Render authentication apache2 configuration to output buffer
+	 */
 	public function render() {
 		echo "
 		

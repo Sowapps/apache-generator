@@ -25,12 +25,11 @@ class ApacheRedirection extends AbstractApacheVirtualHost {
 	/**
 	 * AbstractApacheWebsiteHost constructor
 	 *
-	 * @param string $slug
 	 * @param stdClass $redirection
 	 * @throws ApacheConfigurationException
 	 */
-	public function __construct($slug, $redirection) {
-		parent::__construct($slug, $redirection);
+	public function __construct($redirection) {
+		parent::__construct($redirection);
 		
 		if(empty($redirection->target)) {
 			throw new ApacheConfigurationException('Missing target in redirection configuration');
@@ -39,11 +38,20 @@ class ApacheRedirection extends AbstractApacheVirtualHost {
 		$this->path = !empty($redirection->path) ? $redirection->path : self::DEFAULT_PATH;
 	}
 	
+	/**
+	 * Render redirection apache2 configuration to output buffer
+	 */
 	public function renderContent() {
 		echo "
 	RedirectPermanent {$this->getPath()} {$this->getTarget()}";
 	}
 	
+	
+	/**
+	 * Get title of redirection host
+	 *
+	 * @return string
+	 */
 	protected function getTitle() {
 		return sprintf('Redirection %s of %s', $this->getSlug(), $this->getHost());
 	}
