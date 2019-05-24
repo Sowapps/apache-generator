@@ -53,6 +53,9 @@ You must run this command as root.
 -h, --help
 	Show help
 
+--install [VERSION], --update [VERSION]
+	Install given version in place, replace existing source files, default is latest
+
 
 EOF;
 }
