@@ -136,6 +136,14 @@ class ApacheConfiguration implements Renderable {
 					$hostConfig->slug = $key;
 					$self->applyDefaults($hostConfig, $hostDefault, $templates);
 					$host = new ApacheProxy($hostConfig);
+					// Add website host's redirect to redirections
+					if( isset($hostConfig->redirect) ) {
+						$redirectHost = clone $hostConfig->redirect;
+						$redirectHost->slug = $key . '_redirect';
+						$redirectHost->target = $host->getMainUrl();
+						$self->applyDefaults($redirectHost, $hostDefault, $templates);
+						$self->redirections[] = new ApacheRedirection($redirectHost);
+					}
 				});
 		}
 	}
